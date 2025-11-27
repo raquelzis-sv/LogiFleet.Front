@@ -3,17 +3,21 @@ import {
   Box, Typography, Button, Accordion, AccordionSummary, AccordionDetails,
   CircularProgress, Alert, Chip, List, ListItem, ListItemText, Divider,
   Dialog, DialogTitle, DialogContent, DialogActions, Stepper, Step, StepLabel,
-  FormControl, InputLabel, Select, MenuItem, Checkbox, Paper
+  FormControl, InputLabel, Select, MenuItem, Checkbox, Paper, TextField, Grid
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AddIcon from '@mui/icons-material/Add';
+import WarningIcon from '@mui/icons-material/Warning';
+import ReportIcon from '@mui/icons-material/Report';
+import { useAuth } from '../context/AuthContext';
+
 import rotaService from '../services/rotaService';
 import motoristaService from '../services/motoristaService';
 import veiculoService from '../services/veiculoService';
 import pedidoService from '../services/pedidoService';
+import incidenciaRotaService from '../services/incidenciaRotaService';
 
 const statusRotaEnum = { 0: 'Planejada', 1: 'Em Andamento', 2: 'Concluída', 3: 'Cancelada' };
-const statusVeiculoEnum = { 0: 'Disponível', 1: 'Em Rota', 2: 'Em Manutenção', 3: 'Inativo' };
 
 function CreateRotaDialog({ open, onClose, onRouteCreated }) {
   const [activeStep, setActiveStep] = useState(0);
@@ -67,8 +71,8 @@ function CreateRotaDialog({ open, onClose, onRouteCreated }) {
         veiculoId: selectedVeiculo,
         pedidosIds: selectedPedidos,
       });
-      onRouteCreated(); // Callback to refresh the main list
-      onClose(); // Close the dialog
+      onRouteCreated();
+      onClose();
     } catch (err) {
       setError(err.response?.data || 'Falha ao criar a rota.');
     } finally {
@@ -146,22 +150,34 @@ function CreateRotaDialog({ open, onClose, onRouteCreated }) {
   );
 }
 
-
 function Rotas() {
   const [rotas, setRotas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
+  const { user } = useAuth();
+  
+  const [openIncidenciaDialog, setOpenIncidenciaDialog] = useState(false);
+  const [selectedRotaForIncidencia, setSelectedRotaForIncidencia] = useState(null);
+  const [incidenciaDescricao, setIncidenciaDescricao] = useState('');
+  const [incidenciaError, setIncidenciaError] = useState('');
 
   useEffect(() => {
-    fetchRotas();
-  }, []);
+    if (user) {
+        fetchRotas();
+    }
+  }, [user]);
 
   const fetchRotas = async () => {
     try {
       setLoading(true);
-      const data = await rotaService.getAllRotas();
-      setRotas(data);
+      let data;
+      if (user.role === 'Administrador') {
+        data = await rotaService.getAllRotas();
+      } else if (user.role === 'Motorista') {
+        data = await rotaService.getMinhasRotas();
+      }
+      setRotas(data || []);
     } catch (err) {
       setError('Erro ao carregar rotas.');
     } finally {
@@ -172,9 +188,41 @@ function Rotas() {
   const handleMarkAsDelivered = async (rotaId, pedidoId) => {
     try {
       await rotaService.marcarPedidoComoEntregue(rotaId, pedidoId);
-      fetchRotas(); // Recarrega a lista para mostrar o status atualizado
+      fetchRotas(); 
     } catch (err) {
       alert('Erro ao marcar pedido como entregue.');
+    }
+  };
+  
+  const handleOpenIncidenciaDialog = (rota) => {
+    setSelectedRotaForIncidencia(rota);
+    setIncidenciaDescricao('');
+    setIncidenciaError('');
+    setOpenIncidenciaDialog(true);
+  };
+  
+  const handleCloseIncidenciaDialog = () => {
+    setOpenIncidenciaDialog(false);
+  };
+  
+  const handleSaveIncidencia = async () => {
+    if (!incidenciaDescricao) {
+      setIncidenciaError('A descrição é obrigatória.');
+      return;
+    }
+    try {
+      setIncidenciaError('');
+      const incidenciaData = {
+        rotaId: selectedRotaForIncidencia.id,
+        motoristaId: selectedRotaForIncidencia.motoristaId,
+        descricao: incidenciaDescricao,
+        dataHora: new Date().toISOString()
+      };
+      await incidenciaRotaService.createIncidencia(incidenciaData);
+      fetchRotas();
+      handleCloseIncidenciaDialog();
+    } catch (err) {
+      setIncidenciaError(err.response?.data || 'Falha ao registrar incidência.');
     }
   };
 
@@ -183,8 +231,12 @@ function Rotas() {
 
   return (
     <Box sx={{ my: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom>Gerenciamento de Rotas</Typography>
-      <Button variant="contained" startIcon={<AddIcon />} sx={{ mb: 2 }} onClick={() => setOpenCreateDialog(true)}>Criar Nova Rota</Button>
+      <Typography variant="h4" component="h1" gutterBottom>
+        {user?.role === 'Motorista' ? 'Minhas Rotas' : 'Gerenciamento de Rotas'}
+      </Typography>
+      {user?.role === 'Administrador' && (
+        <Button variant="contained" startIcon={<AddIcon />} sx={{ mb: 2 }} onClick={() => setOpenCreateDialog(true)}>Criar Nova Rota</Button>
+      )}
 
       {rotas.map((rota) => (
         <Accordion key={rota.id}>
@@ -193,12 +245,40 @@ function Rotas() {
             <Chip label={statusRotaEnum[rota.status]} color={rota.status === 2 ? 'success' : 'primary'} />
           </AccordionSummary>
           <AccordionDetails>
-            <Box sx={{ mb: 2 }}>
-              <Typography><b>Motorista:</b> {rota.motorista?.nome || 'N/A'}</Typography>
-              <Typography><b>Veículo:</b> {rota.veiculo?.placa || 'N/A'}</Typography>
-              <Typography><b>Data:</b> {new Date(rota.dataRota).toLocaleDateString()}</Typography>
-            </Box>
-            <Divider />
+            <Grid container spacing={2}>
+                <Grid item xs={12} md={6}>
+                    <Typography variant="h6">Detalhes</Typography>
+                    <Typography><b>Motorista:</b> {rota.motorista?.nome || 'N/A'}</Typography>
+                    <Typography><b>Veículo:</b> {rota.veiculo?.placa || 'N/A'}</Typography>
+                    <Typography><b>Data:</b> {new Date(rota.dataRota).toLocaleDateString()}</Typography>
+                    <Button sx={{mt: 1}} size="small" variant="outlined" startIcon={<ReportIcon />} onClick={() => handleOpenIncidenciaDialog(rota)}>
+                      Registrar Incidência
+                    </Button>
+                </Grid>
+                <Grid item xs={12} md={6}>
+                    {rota.alertasClimaticos?.length > 0 && (
+                        <>
+                            <Typography variant="h6">Alertas Climáticos</Typography>
+                            <List dense>
+                                {rota.alertasClimaticos.map(alerta => (
+                                    <ListItem key={alerta.id}><WarningIcon fontSize="small" sx={{mr: 1}}/> <ListItemText primary={alerta.tipoAlerta} secondary={`Severidade: ${alerta.severidade}`} /></ListItem>
+                                ))}
+                            </List>
+                        </>
+                    )}
+                    {rota.incidencias?.length > 0 && (
+                         <>
+                            <Typography variant="h6">Incidências Registradas</Typography>
+                            <List dense>
+                                {rota.incidencias.map(inc => (
+                                    <ListItem key={inc.id}><ReportIcon fontSize="small" sx={{mr: 1}}/> <ListItemText primary={inc.descricao} secondary={`Em: ${new Date(inc.dataHora).toLocaleString()}`} /></ListItem>
+                                ))}
+                            </List>
+                        </>
+                    )}
+                </Grid>
+            </Grid>
+            <Divider sx={{my: 2}} />
             <Typography variant="h6" sx={{ mt: 2 }}>Pedidos na Rota</Typography>
             <List>
               {rota.rotaPedidos?.map(({ pedido, statusEntrega }) => (
@@ -209,7 +289,7 @@ function Rotas() {
                     </Button>
                   )
                 }>
-                  <ListItemText primary={`Pedido #${pedido.id} - ${pedido.cliente?.nome}`} secondary={`Status: ${statusEntrega}`} />
+                  <ListItemText primary={`Pedido #${pedido.id} - Cliente: ${pedido.cliente?.nomeEmpresa || 'N/A'}`} secondary={`Status: ${statusEntrega}`} />
                 </ListItem>
               ))}
             </List>
@@ -218,6 +298,29 @@ function Rotas() {
       ))}
 
       <CreateRotaDialog open={openCreateDialog} onClose={() => setOpenCreateDialog(false)} onRouteCreated={fetchRotas} />
+      
+      <Dialog open={openIncidenciaDialog} onClose={handleCloseIncidenciaDialog} fullWidth maxWidth="sm">
+        <DialogTitle>Registrar Incidência na Rota #{selectedRotaForIncidencia?.id}</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            name="descricao"
+            label="Descrição da Incidência"
+            type="text"
+            fullWidth
+            multiline
+            rows={4}
+            value={incidenciaDescricao}
+            onChange={(e) => setIncidenciaDescricao(e.target.value)}
+          />
+          {incidenciaError && <Alert severity="error" sx={{mt: 2}}>{incidenciaError}</Alert>}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseIncidenciaDialog}>Cancelar</Button>
+          <Button onClick={handleSaveIncidencia}>Salvar</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

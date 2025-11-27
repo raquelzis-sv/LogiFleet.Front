@@ -1,7 +1,8 @@
 import React from 'react';
 import { Box, Container, Typography } from '@mui/material';
+import { Outlet } from 'react-router-dom';
 
-function AuthLayout({ children }) {
+function AuthLayout() {
   return (
     <Box
       sx={{
@@ -27,7 +28,7 @@ function AuthLayout({ children }) {
             boxShadow: 3,
           }}
         >
-          {children}
+          <Outlet />
         </Box>
       </Container>
     </Box>

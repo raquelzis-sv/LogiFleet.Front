@@ -20,12 +20,23 @@ const pedidoService = {
    */
   getPedidosPendentes: async () => {
     try {
-      const response = await api.get('/pedido');
-      // Filtra no lado do cliente
-      const pedidosPendentes = response.data.filter(pedido => pedido.status === 0);
-      return pedidosPendentes;
+      const response = await api.get('/pedido/pendentes');
+      return response.data;
     } catch (error) {
       console.error('Erro ao buscar pedidos pendentes:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Busca apenas os pedidos do cliente autenticado.
+   */
+  getMeusPedidos: async () => {
+    try {
+      const response = await api.get('/pedido/meus-pedidos');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar meus pedidos:', error);
       throw error;
     }
   },

@@ -41,7 +41,8 @@ const statusVeiculoEnum = {
 function Veiculos() {
   const [veiculos, setVeiculos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [dialogError, setDialogError] = useState('');
   const [openDialog, setOpenDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [currentVeiculo, setCurrentVeiculo] = useState({ 
@@ -55,10 +56,12 @@ function Veiculos() {
   const fetchVeiculos = async () => {
     try {
       setLoading(true);
+      setErrorMessage('');
       const data = await veiculoService.getAllVeiculos();
       setVeiculos(data);
     } catch (err) {
-      setError('Erro ao carregar veículos: ' + (err.response?.data || err.message));
+      const message = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+      setErrorMessage('Erro ao carregar veículos: ' + message);
     } finally {
       setLoading(false);
     }
@@ -67,6 +70,7 @@ function Veiculos() {
   const handleOpenAddDialog = () => {
     setIsEditing(false);
     setCurrentVeiculo({ id: null, placa: '', marca: '', modelo: '', ano: new Date().getFullYear(), capacidadeCarga: 1000, status: 0 });
+    setDialogError('');
     setOpenDialog(true);
   };
 
@@ -77,10 +81,14 @@ function Veiculos() {
       dataUltimaManutencao: veiculo.dataUltimaManutencao ? format(parseISO(veiculo.dataUltimaManutencao), 'yyyy-MM-dd') : '',
       dataProximaManutencao: veiculo.dataProximaManutencao ? format(parseISO(veiculo.dataProximaManutencao), 'yyyy-MM-dd') : ''
     });
+    setDialogError('');
     setOpenDialog(true);
   };
 
-  const handleCloseDialog = () => setOpenDialog(false);
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setDialogError('');
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -89,6 +97,7 @@ function Veiculos() {
 
   const handleSaveVeiculo = async () => {
     try {
+      setDialogError(''); // Limpa erro anterior
       if (isEditing) {
         await veiculoService.updateVeiculo(currentVeiculo.id, currentVeiculo);
       } else {
@@ -97,7 +106,8 @@ function Veiculos() {
       fetchVeiculos();
       handleCloseDialog();
     } catch (err) {
-      setError('Erro ao salvar veículo: ' + (err.response?.data || err.message));
+      const message = err.response?.data ? (typeof err.response.data === 'string' ? err.response.data : JSON.stringify(err.response.data)) : err.message;
+      setDialogError('Erro ao salvar veículo: ' + message);
     }
   };
 
@@ -107,13 +117,16 @@ function Veiculos() {
         await veiculoService.deleteVeiculo(id);
         fetchVeiculos();
       } catch (err) {
-        setError('Erro ao deletar veículo: ' + (err.response?.data || err.message));
+        const message = err.response?.data ? JSON.stringify(err.response.data) : err.message;
+        setErrorMessage('Erro ao deletar veículo: ' + message);
       }
     }
   };
 
+
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}><CircularProgress /></Box>;
-  if (error && !openDialog) return <Box sx={{ mt: 4 }}><Alert severity="error">{error}</Alert></Box>;
+  if (errorMessage) return <Box sx={{ mt: 4 }}><Alert severity="error">{errorMessage}</Alert></Box>;
+
 
   return (
     <Box sx={{ my: 4 }}>
@@ -134,20 +147,28 @@ function Veiculos() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {veiculos.map((veiculo) => (
-              <TableRow key={veiculo.id}>
-                <TableCell>{veiculo.placa}</TableCell>
-                <TableCell>{veiculo.marca}</TableCell>
-                <TableCell>{veiculo.modelo}</TableCell>
-                <TableCell>{veiculo.ano}</TableCell>
-                <TableCell>{veiculo.capacidadeCarga}</TableCell>
-                <TableCell>{statusVeiculoEnum[veiculo.status]}</TableCell>
-                <TableCell align="right">
-                  <IconButton onClick={() => handleOpenEditDialog(veiculo)}><EditIcon /></IconButton>
-                  <IconButton onClick={() => handleDeleteVeiculo(veiculo.id)} color="error"><DeleteIcon /></IconButton>
+            {veiculos.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} align="center">
+                  Nenhum veículo cadastrado.
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              veiculos.map((veiculo) => (
+                <TableRow key={veiculo.id}>
+                  <TableCell>{veiculo.placa}</TableCell>
+                  <TableCell>{veiculo.marca}</TableCell>
+                  <TableCell>{veiculo.modelo}</TableCell>
+                  <TableCell>{veiculo.ano}</TableCell>
+                  <TableCell>{veiculo.capacidadeCarga}</TableCell>
+                  <TableCell>{statusVeiculoEnum[veiculo.status]}</TableCell>
+                  <TableCell align="right">
+                    <IconButton onClick={() => handleOpenEditDialog(veiculo)}><EditIcon /></IconButton>
+                    <IconButton onClick={() => handleDeleteVeiculo(veiculo.id)} color="error"><DeleteIcon /></IconButton>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </TableContainer>
@@ -158,7 +179,7 @@ function Veiculos() {
           <DialogContentText sx={{ mb: 2 }}>
             Preencha os dados do veículo.
           </DialogContentText>
-          {error && <Alert severity="error">{error}</Alert>}
+          {dialogError && <Alert severity="error" sx={{ mb: 2 }}>{dialogError}</Alert>}
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}><TextField name="placa" label="Placa" value={currentVeiculo.placa} onChange={handleInputChange} fullWidth /></Grid>
             <Grid item xs={12} sm={6}><TextField name="marca" label="Marca" value={currentVeiculo.marca} onChange={handleInputChange} fullWidth /></Grid>

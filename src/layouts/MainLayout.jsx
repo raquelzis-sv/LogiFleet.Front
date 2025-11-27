@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { Box, AppBar, Toolbar, Typography, IconButton, Drawer, List, ListItem, ListItemText, CssBaseline } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import { styled } from '@mui/material/styles';
-import { Link, useNavigate } from 'react-router-dom'; // Import Link and useNavigate
-import { useAuth } from '../context/AuthContext'; // Import useAuth
-import LogoutIcon from '@mui/icons-material/Logout'; // Import LogoutIcon if you want to use it
+import { Link, useNavigate, Outlet } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import LogoutIcon from '@mui/icons-material/Logout';
 
 
 const drawerWidth = 240;
@@ -53,9 +53,9 @@ const DrawerHeader = styled('div')(({ theme }) => ({
   justifyContent: 'flex-end',
 }));
 
-function MainLayout({ children }) {
+function MainLayout() {
   const [open, setOpen] = React.useState(false);
-  const { logout } = useAuth(); // Get logout function
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleDrawerOpen = () => {
@@ -71,13 +71,20 @@ function MainLayout({ children }) {
     navigate('/login');
   };
 
-  const menuItems = [
-    { text: 'Dashboard', path: '/dashboard' },
-    { text: 'Clientes', path: '/clientes' },
-    { text: 'Rotas', path: '/rotas' }, // Placeholder
-    { text: 'Veículos', path: '/veiculos' }, // Placeholder
-    { text: 'Motoristas', path: '/motoristas' }, // Placeholder
+  const allMenuItems = [
+    { text: 'Dashboard', path: '/', roles: ['Administrador', 'Motorista', 'Cliente'] },
+    { text: 'Clientes', path: '/clientes', roles: ['Administrador'] },
+    { text: 'Motoristas', path: '/motoristas', roles: ['Administrador'] },
+    { text: 'Veículos', path: '/veiculos', roles: ['Administrador'] },
+    { text: 'Rotas', path: '/rotas', roles: ['Administrador', 'Motorista'] },
+    { text: 'Pedidos', path: '/pedidos', roles: ['Administrador', 'Cliente'] },
+    { text: 'Manutenções', path: '/manutencoes', roles: ['Administrador'] },
+    { text: 'Usuários', path: '/usuarios', roles: ['Administrador'] },
+    { text: 'Configurações', path: '/configuracoes', roles: ['Administrador'] },
+    { text: 'Logs', path: '/logs', roles: ['Administrador'] },
   ];
+
+  const filteredMenuItems = allMenuItems.filter(item => item.roles.includes(user?.role));
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -93,13 +100,12 @@ function MainLayout({ children }) {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div">
-            LogiFleet Dashboard
+          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+            LogiFleet - {user?.role || 'Bem-vindo!'}
           </Typography>
-          {/* Add a logout button to the app bar if desired */}
-          {/* <Button color="inherit" onClick={handleLogout} sx={{ ml: 'auto' }}>
-            Sair
-          </Button> */}
+          <IconButton color="inherit" onClick={handleLogout} title="Sair">
+            <LogoutIcon />
+          </IconButton>
         </Toolbar>
       </AppBarStyled>
       <Drawer
@@ -117,26 +123,20 @@ function MainLayout({ children }) {
       >
         <DrawerHeader>
           <IconButton onClick={handleDrawerClose}>
-            {/* Implement a close icon here if desired */}
             Fechar
           </IconButton>
         </DrawerHeader>
-        {/* <Divider /> */}
         <List>
-          {menuItems.map((item) => (
+          {filteredMenuItems.map((item) => (
             <ListItem button key={item.text} component={Link} to={item.path} onClick={handleDrawerClose}>
               <ListItemText primary={item.text} />
             </ListItem>
           ))}
-          <ListItem button onClick={handleLogout}>
-            <ListItemText primary="Sair" />
-            {/* <ListItemIcon><LogoutIcon /></ListItemIcon> */} {/* Add icon if desired */}
-          </ListItem>
         </List>
       </Drawer>
       <Main open={open}>
         <DrawerHeader />
-        {children}
+        <Outlet />
       </Main>
     </Box>
   );

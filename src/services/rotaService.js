@@ -15,6 +15,19 @@ const rotaService = {
   },
 
   /**
+   * Busca apenas as rotas do motorista autenticado.
+   */
+  getMinhasRotas: async () => {
+    try {
+      const response = await api.get('/rota/minhas-rotas');
+      return response.data;
+    } catch (error) {
+      console.error('Erro ao buscar minhas rotas:', error);
+      throw error;
+    }
+  },
+
+  /**
    * Cria uma nova rota.
    * @param {object} rotaRequest - O objeto da requisição.
    * @param {number} rotaRequest.veiculoId - ID do veículo.
