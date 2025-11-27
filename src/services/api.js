@@ -5,7 +5,7 @@ import axios from 'axios';
 // você precisará configurar o CORS no seu back-end.
 // O launchSettings.json no seu projeto .NET geralmente define a porta.
 // Ex: "applicationUrl": "https://localhost:7258;http://localhost:5258"
-const API_URL = 'http://localhost:5258/api'; // Ajuste a porta se necessário
+const API_URL = 'https://localhost:7188/api'; // Ajustado conforme porta e protocolo do backend
 
 const api = axios.create({
   baseURL: API_URL,

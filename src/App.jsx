@@ -1,17 +1,19 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import Clientes from './pages/Clientes'; // Import Clientes
-import Motoristas from './pages/Motoristas'; // Import Motoristas
+import Clientes from './pages/Clientes';
+import Motoristas from './pages/Motoristas';
+import Veiculos from './pages/Veiculos';
+import Rotas from './pages/Rotas'; // Import Rotas
 import MainLayout from './layouts/MainLayout';
 import AuthLayout from './layouts/AuthLayout';
-import { useAuth } from './context/AuthContext'; // Import useAuth hook
+import { useAuth } from './context/AuthContext';
 
 function App() {
-  const { isAuthenticated, loading } = useAuth(); // Get isAuthenticated and loading from AuthContext
+  const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return <div>Carregando...</div>; // Or a proper loading spinner
+    return <div>Carregando...</div>;
   }
 
   return (
@@ -20,7 +22,7 @@ function App() {
         <Route
           path="/login"
           element={
-            isAuthenticated ? ( // If authenticated, redirect from login page
+            isAuthenticated ? (
               <Navigate to="/dashboard" replace />
             ) : (
               <AuthLayout>
@@ -30,48 +32,39 @@ function App() {
           }
         />
 
-        {/* Protected routes */}
+        {/* Protected Routes */}
         <Route
           path="/dashboard"
           element={
-            isAuthenticated ? (
-              <MainLayout>
-                <Dashboard />
-              </MainLayout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
+            isAuthenticated ? <MainLayout><Dashboard /></MainLayout> : <Navigate to="/login" replace />
           }
         />
-
         <Route
-          path="/clientes" // New route for Clients
+          path="/clientes"
           element={
-            isAuthenticated ? (
-              <MainLayout>
-                <Clientes />
-              </MainLayout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
+            isAuthenticated ? <MainLayout><Clientes /></MainLayout> : <Navigate to="/login" replace />
           }
         />
-
         <Route
-          path="/motoristas" // New route for Drivers
+          path="/motoristas"
           element={
-            isAuthenticated ? (
-              <MainLayout>
-                <Motoristas />
-              </MainLayout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
+            isAuthenticated ? <MainLayout><Motoristas /></MainLayout> : <Navigate to="/login" replace />
+          }
+        />
+        <Route
+          path="/veiculos"
+          element={
+            isAuthenticated ? <MainLayout><Veiculos /></MainLayout> : <Navigate to="/login" replace />
+          }
+        />
+        <Route
+          path="/rotas"
+          element={
+            isAuthenticated ? <MainLayout><Rotas /></MainLayout> : <Navigate to="/login" replace />
           }
         />
 
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
         <Route path="*" element={<div>Página não encontrada (404)</div>} />
       </Routes>
     </Router>
